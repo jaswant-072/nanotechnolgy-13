@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Practicum 13 - JavaScript Task Manager</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+    body { background-color: #eef2f5; padding: 20px; color: #333; }
+
+    header { text-align: center; margin-bottom: 30px; background: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
+    header h1 { color: #0284c7; }
+    header p { color: #666; font-size: 0.9rem; margin-top: 5px; }
+
+    .app-container { max-width: 1100px; margin: 0 auto; display: flex; flex-direction: column; gap: 20px; }
+
+    .input-section { background: #fff; padding: 20px; border-radius: 8px; display: flex; gap: 10px; flex-wrap: wrap; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
+    .input-section input, .input-section select, .input-section button { padding: 12px; border: 1px solid #ddd; border-radius: 5px; font-size: 1rem; }
+    #taskTitle { flex-grow: 2; min-width: 250px; }
+    #taskDeadline { flex-grow: 1; }
+    #taskPriority { width: 120px; }
+    #addBtn { flex-grow: 1; background: #0284c7; color: white; border: none; cursor: pointer; font-weight: bold; min-width: 120px; transition: background 0.2s; }
+    #addBtn:hover { background: #0369a1; }
+
+    .filter-section { background: #fff; padding: 15px; border-radius: 8px; display: flex; gap: 15px; flex-wrap: wrap; box-shadow: 0 2px 5px rgba(0,0,0,0.05); align-items: center; }
+    .filter-section label { font-weight: bold; margin-right: 5px; }
+    .filter-section input, .filter-section select { padding: 8px; border: 1px solid #ddd; border-radius: 5px; }
+    #searchInput { flex-grow: 1; }
+
+    .kanban-board { display: flex; gap: 20px; align-items: flex-start; }
+    .kanban-column { flex: 1; background: #f8fafc; padding: 15px; border-radius: 8px; min-height: 300px; border: 1px solid #e2e8f0; }
+    .kanban-column h2 { text-align: center; margin-bottom: 15px; font-size: 1.2rem; }
+    
+    .column-pending h2 { color: #b45309; border-bottom: 2px solid #b45309; }
+    .column-inProgress h2 { color: #0369a1; border-bottom: 2px solid #0369a1; }
+    .column-completed h2 { color: #15803d; border-bottom: 2px solid #15803d; }
+
+    .task-card { background: #fff; padding: 15px; margin-bottom: 10px; border-radius: 6px; border-left: 5px solid #ccc; box-shadow: 0 1px 3px rgba(0,0,0,0.1); cursor: grab; position: relative; }
+    .task-card:active { cursor: grabbing; }
+    
+    .priority-low { border-left-color: #16a34a; }
+    .priority-medium { border-left-color: #ca8a04; }
+    .priority-high { border-left-color: #dc2626; }
+
+    .task-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px; }
+    .task-title { font-weight: bold; font-size: 1.05rem; }
+    .task-priority-badge { font-size: 0.75rem; padding: 2px 6px; border-radius: 10px; color: #fff; font-weight: bold; text-transform: uppercase; }
+    
+    .priority-low .task-priority-badge { background-color: #16a34a; }
+    .priority-medium .task-priority-badge { background-color: #ca8a04; }
+    .priority-high .task-priority-badge { background-color: #dc2626; }
+
+    .task-footer { display: flex; justify-content: space-between; align-items: center; font-size: 0.85rem; color: #666; }
+    .task-actions { display: flex; gap: 5px; margin-top: 5px; }
+    .task-actions button { padding: 4px 8px; border: none; border-radius: 4px; cursor: pointer; font-size: 0.8rem; }
+    .btn-move { background: #e0f2fe; color: #0369a1; }
+    .btn-move:hover { background: #bae6fd; }
+    .btn-edit { background: #fef3c7; color: #92400e; }
+    .btn-edit:hover { background: #fde68a; }
+    .btn-delete { background: #fee2e2; color: #b91c1c; }
+    .btn-delete:hover { background: #fecaca; }
+
+    .kanban-column.drag-over { background-color: #dbeafe; border: 2px dashed #2563eb; }
+
+    @media (max-width: 850px) { .kanban-board { flex-direction: column; } }
+  </style>
+</head>
+<body>
+
+  <header>
+    <h1>TASK MANAGER (Kanban Workflow)</h1>
+    <p>Practicum 13: Dynamic Front-End Webpage | JASWANT D (URK26CS1188)</p>
+  </header>
+
+  <div class="app-container">
+    <section class="input-section">
+      <input type="text" id="taskTitle" placeholder="Enter task title (e.g., Review API docs)" required>
+      <input type="date" id="taskDeadline" required>
+      <select id="taskPriority">
+        <option value="Low">Low Priority</option>
+        <option value="Medium" selected>Medium Priority</option>
+        <option value="High">High Priority</option>
+      </select>
+      <button id="addBtn">Add Task</button>
+    </section>
+
+    <section class="filter-section">
+        <label for="searchInput">Search:</label>
+        <input type="text" id="searchInput" placeholder="Search tasks... ">
+        <label for="filterStatus">Filter Status:</label>
+        <select id="filterStatus">
+          <option value="All">All</option>
+          <option value="Pending">Pending</option>
+          <option value="In Progress">In Progress</option>
+          <option value="Completed">Completed</option>
+        </select>
+    </section>
+
+    <section class="kanban-board">
+      <div id="pending" class="kanban-column column-pending" ondrop="drop(event)" ondragover="allowDrop(event)">
+        <h2>Pending</h2>
+      </div>
+
+      <div id="inProgress" class="kanban-column column-inProgress" ondrop="drop(event)" ondragover="allowDrop(event)">
+        <h2>In Progress</h2>
+      </div>
+
+      <div id="completed" class="kanban-column column-completed" ondrop="drop(event)" ondragover="allowDrop(event)">
+        <h2>Completed</h2>
+      </div>
+    </section>
+  </div>
+
+  <script>
+    let tasks = JSON.parse(localStorage.getItem('tasks')) || [];
+    let draggedTaskId = null;
+
+    const taskTitleInput = document.getElementById('taskTitle');
+    const taskDeadlineInput = document.getElementById('taskDeadline');
+    const taskPriorityInput = document.getElementById('taskPriority');
+    const addBtn = document.getElementById('addBtn');
+    const searchInput = document.getElementById('searchInput');
+    const filterStatus = document.getElementById('filterStatus');
+    const columns = {
+        pending: document.getElementById('pending'),
+        inProgress: document.getElementById('inProgress'),
+        completed: document.getElementById('completed')
+    };
+
+    taskDeadlineInput.valueAsDate = new Date();
+    renderTasks();
+
+    function saveTasks() {
+        localStorage.setItem('tasks', JSON.stringify(tasks));
+    }
+
+    function renderTasks() {
+        Object.values(columns).forEach(col => {
+            Array.from(col.children).forEach(child => {
+                if (child.tagName !== 'H2') child.remove();
+            });
+        });
+
+        const searchTerm = searchInput.value.toLowerCase();
+        const statusFilter = filterStatus.value;
+
+        let filteredTasks = tasks.filter(task => {
+            const matchesSearch = task.title.toLowerCase().includes(searchTerm);
+            const matchesStatus = statusFilter === 'All' || task.status === statusFilter;
+            return matchesSearch && matchesStatus;
+        });
+
+        filteredTasks.forEach(task => {
+            const card = createTaskCard(task);
+            columns[task.statusColumn].appendChild(card);
+        });
+    }
+
+    function createTaskCard(task) {
+        const card = document.createElement('div');
+        card.className = `task-card priority-${task.priority.toLowerCase()}`;
+        card.draggable = true;
+        card.id = task.id; 
+
+        card.addEventListener('dragstart', dragStart);
+        card.addEventListener('dragend', dragEnd);
+
+        let moveBtnHtml = '';
+        if (task.statusColumn === 'pending') {
+            moveBtnHtml = `<button class="btn-move" onclick="moveTask(${task.id}, 'inProgress')">Start →</button>`;
+        } else if (task.statusColumn === 'inProgress') {
+            moveBtnHtml = `<button class="btn-move" onclick="moveTask(${task.id}, 'completed')">Finish ✓</button>`;
+        }
+
+        card.innerHTML = `
+            <div class="task-header">
+                <span class="task-title">${task.title}</span>
+                <span class="task-priority-badge">${task.priority}</span>
+            </div>
+            <div class="task-footer">
+                <span>Due: ${task.deadline}</span>
+            </div>
+            <div class="task-actions">
+                ${moveBtnHtml}
+                <button class="btn-edit" onclick="editTask(${task.id})">Edit</button>
+                <button class="btn-delete" onclick="deleteTask(${task.id})">Delete</button>
+            </div>
+        `;
+        return card;
+    }
+
+    addBtn.addEventListener('click', () => {
+        const title = taskTitleInput.value;
+        const deadline = taskDeadlineInput.value;
+        const priority = taskPriorityInput.value;
+
+        if (title.trim() === '' || deadline === '') {
+            alert('Please fill in both title and deadline.');
+            return;
+        }
+
+        const newTask = {
+            id: Date.now(), 
+            title: title,
+            deadline: deadline,
+            priority: priority,
+            status: 'pending',      
+            statusColumn: 'pending' 
+        };
+
+        tasks.push(newTask);
+        saveTasks();
+        renderTasks();
+
+        taskTitleInput.value = '';
+        taskDeadlineInput.valueAsDate = new Date();
+    });
+
+    function moveTask(id, targetColumnId) {
+        const task = tasks.find(t => t.id === id);
+        if (task) {
+            task.statusColumn = targetColumnId;
+            if(targetColumnId === 'completed') {
+                task.status = 'Completed';
+            } else {
+                task.status = targetColumnId.charAt(0).toUpperCase() + targetColumnId.slice(1).replace('P',' p'); 
+                if(targetColumnId === 'pending') task.status = 'Pending';
+                if(targetColumnId === 'inProgress') task.status = 'In Progress';
+            }
+            
+            saveTasks();
+            renderTasks();
+        }
+    }
+
+    function editTask(id) {
+        const task = tasks.find(t => t.id === id);
+        if (task) {
+            const newTitle = prompt('Edit Task Title:', task.title);
+            const newDeadline = prompt('Edit Task Deadline (YYYY-MM-DD):', task.deadline);
+            const newPriority = prompt('Edit Task Priority (Low, Medium, High):', task.priority);
+
+            if (newTitle !== null && newTitle.trim() !== '') task.title = newTitle;
+            if (newDeadline !== null && newDeadline.trim() !== '') task.deadline = newDeadline;
+            if (newPriority !== null && ['Low', 'Medium', 'High'].includes(newPriority)) task.priority = newPriority;
+
+            saveTasks();
+            renderTasks();
+        }
+    }
+
+    function deleteTask(id) {
+        if (confirm('Are you sure you want to delete this task?')) {
+            tasks = tasks.filter(t => t.id !== id);
+            saveTasks();
+            renderTasks();
+        }
+    }
+
+    function dragStart(e) {
+        draggedTaskId = e.target.id;
+        e.target.style.opacity = '0.5'; 
+        e.dataTransfer.effectAllowed = 'move';
+    }
+
+    function dragEnd(e) {
+        e.target.style.opacity = '1'; 
+        draggedTaskId = null;
+        Object.values(columns).forEach(col => col.classList.remove('drag-over'));
+    }
+
+    function allowDrop(e) {
+        e.preventDefault(); 
+    }
+    
+    Object.values(columns).forEach(col => {
+        col.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            col.classList.add('drag-over');
+        });
+        col.addEventListener('dragleave', () => {
+            col.classList.remove('drag-over');
+        });
+    });
+
+    function drop(e) {
+        e.preventDefault();
+        const column = e.target.closest('.kanban-column');
+        if (!column) return; 
+
+        const taskIdStr = draggedTaskId;
+        const columnId = column.id; 
+
+        const task = tasks.find(t => t.id === parseInt(taskIdStr));
+
+        if (task && columns[columnId]) {
+            task.statusColumn = columnId;
+
+             if(columnId === 'completed') {
+                task.status = 'Completed';
+            } else {
+                if(columnId === 'pending') task.status = 'Pending';
+                if(columnId === 'inProgress') task.status = 'In Progress';
+            }
+
+            saveTasks();
+            renderTasks();
+            
+            column.classList.remove('drag-over');
+        }
+    }
+
+    searchInput.addEventListener('input', renderTasks);
+    filterStatus.addEventListener('change', renderTasks);
+
+  </script>
+</body>
+</html>
